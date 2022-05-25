@@ -6,6 +6,9 @@ COPY package*.json ./
 
 COPY . .
 
+RUN npm install -g node-gyp
+
+
 RUN npm install
 
 CMD ["npm","run","dev"]

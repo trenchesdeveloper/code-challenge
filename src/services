@@ -1,7 +1,6 @@
-import { createCanvas, registerFont, Image } from 'canvas'
-import fs from 'fs/promises'
-import path from 'path'
-
+const fs = require("fs").promises;
+const { createCanvas, registerFont, Image } = require("canvas");
+const path = require("path");
 /**
  * Calculate text positions to draw texts into rectangle
  *
@@ -39,8 +38,6 @@ function calculateTextPositionIntoRectangle({ ctx, text, style, rect }) {
       if (i <= 0) {
         // A word doesn't fit into a line. Try a smaller font size
         break;
-
-
       }
 
       lines.push({
@@ -55,7 +52,7 @@ function calculateTextPositionIntoRectangle({ ctx, text, style, rect }) {
 
     const space = style.paddingTop + rect.height - paddingTop;
     if (words.length === 0 && space >= 0) {
-      // The title fits into the image with the font size.
+      // The text fits into the image with the font size.
       // Vertically centering the text in the given rectangle.
       const centeredLines = lines.map((line) => {
         return {
@@ -80,7 +77,7 @@ function calculateTextPositionIntoRectangle({ ctx, text, style, rect }) {
  * @param {Object} style font styles
  */
 function getFontStyle(style) {
-  return `${style.fontWeight} ${style.fontSize}px "${style.fontFamily}"`
+  return `${style.fontWeight} ${style.fontSize}px "${style.fontFamily}"`;
 }
 
 /**
@@ -89,9 +86,9 @@ function getFontStyle(style) {
  * @param {Buffer} fileData image data from local file system
  */
 function getImage(fileData) {
-  const image = new Image()
-  image.src = fileData
-  return image
+  const image = new Image();
+  image.src = fileData;
+  return image;
 }
 
 /**
@@ -100,27 +97,27 @@ function getImage(fileData) {
  * @param {Object} options options to generate an image
  */
 async function generateImage(options) {
-  if ('fontFile' in options && options.fontFile.length > 0) {
+  if ("fontFile" in options && options.fontFile.length > 0) {
     options.fontFile.forEach(({ path, family, weight }) => {
       registerFont(path, {
         family,
         weight,
-      })
-    })
+      });
+    });
   }
 
   // create canvas
-  const canvas = createCanvas(options.image.width, options.image.height)
-  const ctx = canvas.getContext('2d')
+  const canvas = createCanvas(options.image.width, options.image.height);
+  const ctx = canvas.getContext("2d");
 
   // Draw a background
-  ctx.fillStyle = options.image.backgroundColor
-  ctx.fillRect(0, 0, options.image.width, options.image.height)
+  ctx.fillStyle = options.image.backgroundColor;
+  ctx.fillRect(0, 0, options.image.width, options.image.height);
 
-  if ('backgroundImage' in options.image && options.image.backgroundImage) {
-    const imageFile = await fs.readFile(options.image.backgroundImage)
-    const image = getImage(imageFile)
-    ctx.drawImage(image, 0, 0, options.image.width, options.image.height)
+  if ("backgroundImage" in options.image && options.image.backgroundImage) {
+    const imageFile = await fs.readFile(options.image.backgroundImage);
+    const image = getImage(imageFile);
+    ctx.drawImage(image, 0, 0, options.image.width, options.image.height);
   }
 
   const { lines } = calculateTextPositionIntoRectangle({
@@ -139,51 +136,46 @@ async function generateImage(options) {
         options.style.title.paddingTop -
         options.style.title.paddingBottom,
     },
-  })
+  });
 
   // Draw title texts
   lines.forEach(({ text, x, y }) => {
-    ctx.fillStyle = options.style.title.fontColor
-    ctx.fillText(text, x, y)
-  })
+    ctx.fillStyle = options.style.title.fontColor;
+    ctx.fillText(text, x, y);
+  });
 
-  // Draw an author text
+  // Draw the text
   ctx.font = getFontStyle({
-    ...options.style.author,
-    fontFamily: options.style.author.fontFamily,
-  })
-  ctx.fillStyle = options.style.author.fontColor
-  ctx.fillText(options.meta.author, 260, options.image.height - 90)
+    ...options.style.title,
+    fontFamily: options.style.title.fontFamily,
+  });
+  ctx.fillStyle = options.style.author.fontColor;
+  ctx.fillText(options.meta.text, 260, options.image.height - 90);
 
-  // Draw a icon
-  const imageFile = await fs.readFile(require.resolve(options.iconFile))
-  const image = getImage(imageFile)
-  ctx.drawImage(image, 150, options.image.height - 150, 80, 80)
-
-  const buffer = canvas.toBuffer()
+  const buffer = canvas.toBuffer();
 
   try {
     if (options.output.directory) {
-      await fs.mkdir(options.output.directory, { recursive: true })
+      await fs.mkdir(options.output.directory, { recursive: true });
     }
     await fs.writeFile(
       path.join(options.output.directory, options.output.fileName),
       buffer
-    )
+    );
   } catch (error) {
-    if (error.code !== 'EEXIST') {
-      throw error
+    if (error.code !== "EEXIST") {
+      throw error;
     }
   }
 
-  return path.join(options.output.directory, options.output.fileName)
+  return path.join(options.output.directory, options.output.fileName);
 }
 
 /**
  * Fail a process if it cannot be completed within a timeout specified.
  */
 function timeout() {
-  let timeoutId = null
+  let timeoutId = null;
 
   /**
    * Fail a process if it cannot be completed within a timeout specified.
@@ -194,42 +186,45 @@ function timeout() {
       timeoutId = setTimeout(() => {
         reject(
           new Error(
-            'Occurred timeout error in the process to generate an image. Change a smaller font size or shorten texts in the options and retry.'
+            "Occurred timeout error in the process to generate an image. Change a smaller font size or shorten texts in the options and retry."
           )
-        )
-      }, timeoutMs)
-    })
+        );
+      }, timeoutMs);
+    });
 
   /**
    * Cancel timeout.
    */
   const cancel = () => {
     if (timeoutId) {
-      clearTimeout(timeoutId)
+      clearTimeout(timeoutId);
     }
-  }
+  };
 
   return {
     handle,
     cancel,
-  }
+  };
 }
 
-const generate = async options => {
-  const timeoutHandler = timeout()
+const generate = async (options) => {
+  console.log("Generating an image...", options);
+  const timeoutHandler = timeout();
 
   return Promise.race([
     generateImage(options),
     timeoutHandler.handle(options.timeout),
   ])
-    .then(output => {
-      timeoutHandler.cancel()
-      return output
+    .then((output) => {
+      timeoutHandler.cancel();
+      return output;
     })
-    .catch(error => {
-      timeoutHandler.cancel()
-      throw error
-    })
-}
+    .catch((error) => {
+      timeoutHandler.cancel();
+      throw error;
+    });
+};
 
-export default generate
+module.exports = {
+  generate,
+};
